@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	move := kinago.Move{}
+	move := kinago.Coordinate{}
 	if x, err := strconv.Atoi(os.Getenv("X")); err == nil && x != 0 {
 		move.X = x
 	}

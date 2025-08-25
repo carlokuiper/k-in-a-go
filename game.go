@@ -7,16 +7,16 @@ import (
 	"sync"
 )
 
-type Move struct {
+type Coordinate struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 }
 
 type Game struct {
-	K        int     `json:"k"`
-	Board    [][]int `json:"board"`
-	History  []Move  `json:"history"`
-	Finished bool    `json:"finished"`
+	K        int          `json:"k"`
+	Board    [][]int      `json:"board"`
+	History  []Coordinate `json:"history"`
+	Finished []Coordinate `json:"finished"`
 	mu       sync.Mutex
 }
 
@@ -28,7 +28,7 @@ func (g *Game) New(config Config) {
 	g.K = config.K
 	g.Board = board
 	g.History = nil
-	g.Finished = false
+	g.Finished = nil
 }
 
 func (g *Game) Start(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ func (g *Game) Move(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-	var move Move
+	var move Coordinate
 	if err := json.NewDecoder(r.Body).Decode(&move); err != nil {
 		http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
 		return
@@ -113,21 +113,21 @@ func (g *Game) nextValue() int {
 	}
 }
 
-func (g *Game) update(move Move, nextValue int) error {
+func (g *Game) update(move Coordinate, nextValue int) error {
 	m, n := mxn(g.Board)
 	if move.X < 0 || move.Y < 0 || move.X >= n || move.Y >= m {
 		return fmt.Errorf("move invalid")
 	}
 	if g.History == nil {
 		g.Board[move.Y][move.X] = nextValue
-		g.History = []Move{move}
+		g.History = []Coordinate{move}
 		return nil
 	}
 	previousMove := g.History[len(g.History)-1]
 	if previousMove == move {
 		return nil
 	}
-	if g.Finished {
+	if g.Finished != nil {
 		return fmt.Errorf("game already finished")
 	}
 	if g.Board[move.Y][move.X] != 0 {
@@ -139,55 +139,64 @@ func (g *Game) update(move Move, nextValue int) error {
 	return nil
 }
 
-func finished(board [][]int, k int) bool {
+type position struct {
+	Coordinate
+	value int
+}
+
+func finished(board [][]int, k int) []Coordinate {
 	m, n := mxn(board)
-	for _, row := range board {
-		if kInARow(row, k) {
-			return true
+	for y, r := range board {
+		row := make([]position, 0, k)
+		for x, value := range r {
+			row = append(row, position{Coordinate{x, y}, value})
+		}
+		if result := kInARow(row, k); result != nil {
+			return result
 		}
 	}
-	for i := range m {
-		column := make([]int, n)
-		for j, row := range board {
-			column[j] = row[i]
+	for x := range m {
+		column := make([]position, n)
+		for y, row := range board {
+			column[y] = position{Coordinate{x, y}, row[x]}
 		}
-		if kInARow(column, k) {
-			return true
+		if result := kInARow(column, k); result != nil {
+			return result
 		}
 	}
 	// (off) diagonal
 	for i := -(n - 1); i < m; i++ {
 		x := i
 		y := 0
-		offDiagonal := make([]int, 0, n)
+		offDiagonal := make([]position, 0, n)
 		for range n {
 			if x >= 0 && y >= 0 && x < m && y < n {
-				offDiagonal = append(offDiagonal, board[y][x])
+				offDiagonal = append(offDiagonal, position{Coordinate{x, y}, board[y][x]})
 			}
 			x++
 			y++
 		}
-		if kInARow(offDiagonal, k) {
-			return true
+		if result := kInARow(offDiagonal, k); result != nil {
+			return result
 		}
 	}
 	// (off) anti diagonal
 	for i := 0; i < m+n; i++ {
 		x := 0
 		y := i
-		offAntiDiagonal := make([]int, 0, m)
+		offAntiDiagonal := make([]position, 0, m)
 		for range m {
 			if x >= 0 && y >= 0 && x < m && y < n {
-				offAntiDiagonal = append(offAntiDiagonal, board[y][x])
+				offAntiDiagonal = append(offAntiDiagonal, position{Coordinate{x, y}, board[y][x]})
 			}
 			x++
 			y--
 		}
-		if kInARow(offAntiDiagonal, k) {
-			return true
+		if result := kInARow(offAntiDiagonal, k); result != nil {
+			return result
 		}
 	}
-	return false
+	return nil
 }
 
 func mxn(board [][]int) (int, int) {
@@ -198,24 +207,25 @@ func mxn(board [][]int) (int, int) {
 	return len(board[0]), n
 }
 
-func kInARow(row []int, k int) bool {
-	var count, lastEl int
-	for _, el := range row {
-		switch el {
+func kInARow(row []position, k int) []Coordinate {
+	var lastEl int
+	var result []Coordinate
+	for _, p := range row {
+		switch p.value {
 		case 0:
-			count = 0
+			result = nil
 			lastEl = 0
 		case lastEl:
-			count++
-			if count == k {
-				return true
+			result = append(result, p.Coordinate)
+			if len(result) == k {
+				return result
 			}
 		default:
-			count = 1
-			lastEl = el
+			result = []Coordinate{p.Coordinate}
+			lastEl = p.value
 		}
 	}
-	return false
+	return nil
 }
 
 type Config struct {
