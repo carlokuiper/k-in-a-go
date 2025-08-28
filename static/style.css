@@ -1,0 +1,9 @@
+body,
+html {
+    background: #111;
+    color: white;
+    font-family: sans-serif;
+}
+input {
+    margin-bottom: 20px;
+}

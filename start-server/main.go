@@ -23,9 +23,13 @@ func main() {
 		config.K = k
 	}
 	game.New(config)
-	http.HandleFunc("/", game.Get)
+	http.HandleFunc("/status", game.Status)
 	http.HandleFunc("/start", game.Start)
-	http.HandleFunc("/turn", game.Move)
+	http.HandleFunc("/move", game.Move)
+
+	fileServer := http.FileServer(http.Dir("../static"))
+	http.Handle("/", fileServer)
+
 	fmt.Println("Starting server at http://localhost:8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

@@ -50,7 +50,7 @@ func (g *Game) Start(w http.ResponseWriter, r *http.Request) {
 	g.mu.Unlock()
 	g.writeResponse(w)
 }
-func (g *Game) Get(w http.ResponseWriter, r *http.Request) {
+func (g *Game) Status(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
