@@ -1,6 +1,16 @@
 const startForm = document.getElementById('start-form');
 const moveForm = document.getElementById('move-form');
 
+async function updateBoard(response) {
+    if (!response.ok) {
+        const message = `An error has occured: ${response.status}`;
+        throw new Error(message);
+    }
+    game = await response.json()
+    const rows = game.board.map((r) => "<p>" + r + "</p>").join("")
+    document.getElementById('output').innerHTML = rows
+}
+
 startForm.addEventListener('submit', async function (event) {
     event.preventDefault()
     const response = await fetch(document.URL + "start", {
@@ -12,14 +22,7 @@ startForm.addEventListener('submit', async function (event) {
             k: parseInt(document.getElementById('k').value, 10)
         })
     });
-    if (!response.ok) {
-        const message = `An error has occured: ${response.status}`;
-        throw new Error(message);
-    }
-    game = await response.json()
-    const rows = game.board.map((r) =>
-    "<o>" + r + "</p>").join("")
-    document.getElementById('output').innerHTML = rows
+    await updateBoard(response);
 });
 
 moveForm.addEventListener('submit', async function (event) {
@@ -32,13 +35,5 @@ moveForm.addEventListener('submit', async function (event) {
             y: parseInt(document.getElementById('y').value, 10),
         })
     });
-    debugger;
-    if (!response.ok) {
-        const message = `An error has occured: ${response.status}`;
-        throw new Error(message);
-    }
-    game = await response.json()
-    const rows = game.board.map((r) =>
-        "<o>" + r + "</p>").join("")
-    document.getElementById('output').innerHTML = rows
+    await updateBoard(response)
 });
